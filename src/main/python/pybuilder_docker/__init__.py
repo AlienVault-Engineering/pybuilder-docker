@@ -197,7 +197,7 @@ def render_docker_buildfile(project, build_image):
     template_values = {
         "build_image": build_image,
         "dist_file": dist_file,
-        "maintainer": project.get_property("docker_package_image_maintainer",
+        "maintainer_name": project.get_property("docker_package_image_maintainer",
                                                         "anonymous"),
         "prepare_env_cmd": project.get_property("docker_package_prepare_env_cmd",
                                                 "echo 'empty prepare_env_cmd installing into python'"),
