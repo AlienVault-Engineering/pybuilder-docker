@@ -166,7 +166,9 @@ def _run_push_cmd(project, remote_img, logger):
     command = ExternalCommandBuilder('docker', project)
     command.use_argument('push')
     command.use_argument('{0}').formatted_with(remote_img)
-    command.run("{}/{}".format(report_dir, 'docker_push_tag'))
+    res = command.run("{}/{}".format(report_dir, 'docker_push_tag'))
+    if res.exit_code >0:
+        raise Exception("Error pushing image to remote registry - {}".format(remote_img))
 
 
 #
