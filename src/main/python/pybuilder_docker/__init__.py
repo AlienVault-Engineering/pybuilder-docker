@@ -168,6 +168,7 @@ def _run_push_cmd(project, remote_img, logger):
     command.use_argument('{0}').formatted_with(remote_img)
     res = command.run("{}/{}".format(report_dir, 'docker_push_tag'))
     if res.exit_code >0:
+        logger.info(res.error_report_lines)
         raise Exception("Error pushing image to remote registry - {}".format(remote_img))
 
 
