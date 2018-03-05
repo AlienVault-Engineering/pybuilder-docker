@@ -13,7 +13,7 @@ from pybuilder.utils import assert_can_execute
 DOCKER_IMAGE_TEMPLATE = string.Template("""
 FROM ${build_image}
 MAINTAINER ${maintainer_name}
-COPY ${dist_file} /
+COPY ${dist_file} .
 RUN ${prepare_env_cmd}
 RUN ${package_cmd}
 """)
