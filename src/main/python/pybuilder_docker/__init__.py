@@ -48,7 +48,10 @@ def do_docker_package(project, logger):
     command.use_argument('-t')
     command.use_argument('{0}').formatted_with(temp_build_img)
     command.use_argument('{0}').formatted_with_property('docker_package_build_dir')
-    command.run("{}/{}".format(report_dir, 'docker_package_build'))
+    result = command.run("{}/{}".format(report_dir, 'docker_package_build'))
+    if result.exit_code !=0:
+        logger.error(result.error_report_lines)
+        raise Exception("Error building primary stage docker image")
     write_docker_build_file(project=project, logger=logger, build_image=temp_build_img, dist_dir=dist_dir)
     copy_dist_file(project=project, dist_dir=dist_dir, logger=logger)
     logger.info("Executing secondary stage docker build for image - {}.".format(build_img))
@@ -57,7 +60,10 @@ def do_docker_package(project, logger):
     command.use_argument('-t')
     command.use_argument('{0}').formatted_with(build_img)
     command.use_argument('{0}').formatted_with(dist_dir)
-    command.run("{}/{}".format(report_dir, 'docker_package_img'))
+    result = command.run("{}/{}".format(report_dir, 'docker_package_img'))
+    if result.exit_code !=0:
+        logger.error(result.error_report_lines)
+        raise Exception("Error building docker image")
     logger.info("Finished build docker image - {} - with dist file - {}".format(build_img, dist_dir))
 
 
