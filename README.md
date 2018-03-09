@@ -12,7 +12,7 @@ Note: pybuilder-docker performs a two staged image build, first building a tempo
 Name | Type | Default Value | Description
 -- | -- | -- | --
 docker_package_build_dir | string | src/main/docker| Directory where (first stage) Dockerfile and it's resources are located
-docker_package_build_image | string | $project.name| Name of final image
+docker_package_build_img | string | $project.name:$project.version| Name of final image
 docker_package_build_version| string | $project.version| Version of docker image
 docker_package_image_maintainer| string| anonymous| Maintainer information for docker image
 docker_package_prepare_env_cmd| string | echo 'empty prepare_env_cmd installing into python'| Command to prepare environment before installation
