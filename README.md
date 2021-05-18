@@ -1,7 +1,7 @@
 # pybuilder-docker
 A pybuilder plugin that stages a python package into a docker container and optionally publishes it to a registry.
 
-To have pybuilder build a docker image containing the project's package, add `use_plugin("pypi:pybuilder_docker")` to your build.py file, add a Dockerfile and required resources to the folder `src/main/docker`.
+To have pybuilder build a docker image containing the project's package, add `use_plugin("pypi:pybuilder_docker_too")` to your build.py file, add a Dockerfile and required resources to the folder `src/main/docker`.
 
 Running `pyb docker_package` will build the docker image, `pyb docker_push` will push it to the registry specified via the (mandatory) property `docker_push_registry`.
 
