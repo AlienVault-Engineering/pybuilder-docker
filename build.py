@@ -8,7 +8,7 @@ use_plugin("python.coverage")
 use_plugin("python.distutils")
 
 
-name = "pybuilder-docker"
+name = "pybuilder-docker-too"
 default_task = "publish"
 
 
@@ -21,11 +21,11 @@ def set_properties(project):
         project.version = "0.0.999"
     #Project Manifest
     project.summary = "A pybuilder plugin that stages a python package into a docker container and optionally publishes it to a registry."
-    project.home_page = "https://github.com/AlienVault-Engineering/pybuilder-docker"
+    project.home_page = "https://github.com/rspitler/pybuilder-docker"
     project.description = "A pybuilder plugin that stages a python package into a docker container and optionally publishes it to a registry."
-    project.author = "AlienVault"
+    project.author = "Rspitler"
     project.license = "Apache 2.0"
-    project.url = "https://github.com/AlienVault-Engineering/pybuilder-docker"
+    project.url = "https://github.com/rspitler/pybuilder-docker"
     # project.depends_on_requirements("requirements.txt")
     #Build and test settings
     project.set_property("run_unit_tests_propagate_stdout",True)
