@@ -83,16 +83,13 @@ def get_build_img(project):
 def docker_push(project, logger, reactor: Reactor):
     do_docker_push(project, logger, reactor)
 
-# aws ecr get-authorization-token --output text --query 'authorizationData[].authorizationToken' | base64 -D | cut -d: -f2
-# docker login -u AWS -p <my_decoded_password> -e <any_email_address> <aws_account_id>.dkr.ecr.us-west-2.amazonaws.com
+# aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
 def _ecr_login(project, registry, logger, reactor):
     res = exec_command('aws', [
-        'ecr', 'get-authorization-token', '--output', 'text', '--query',
-        'authorizationData[].authorizationToken'
+        'ecr', 'get-login-password'
     ], 'docker_ecr_get_token', project, logger=logger, reactor=reactor, exeception_message="Error getting token")
-    pass_token = base64.b64decode(res.report_lines[0])
-    split = str(pass_token).split(':')
-    exec_command('docker', ['login', '-u', f"{split[0]}", "-p", f"{split[1]}", f"{registry}"],
+    pass_token = res.report_lines[0]
+    exec_command('docker', ['login', '-u', f"AWS", "-p", f"{pass_token}", f"{registry}"],
                  "docker_ect_docker_login", project, logger=logger, reactor=reactor,
                  exeception_message="Error authenticating")
 
