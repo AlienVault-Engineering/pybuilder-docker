@@ -89,6 +89,7 @@ def _ecr_login(project, registry, logger, reactor):
         'ecr', 'get-login-password'
     ], 'docker_ecr_get_token', project, logger=logger, reactor=reactor, exeception_message="Error getting token")
     pass_token = res.report_lines[0]
+
     exec_command('docker', ['login', '-u', f"AWS", "-p", f"{pass_token}", f"{registry}"],
                  "docker_ect_docker_login", project, logger=logger, reactor=reactor,
                  exeception_message="Error authenticating")
