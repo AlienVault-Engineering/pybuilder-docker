@@ -85,6 +85,8 @@ def docker_push(project, logger, reactor: Reactor):
 
 # aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
 def _ecr_login(project, registry, logger, reactor):
+    reactor.pybuilder_venv.verify_can_execute(["aws", "--version"], prerequisite="aws", caller="docker_package")
+    # is true if user set verbose in build.py or from command line
     res = exec_command('aws', [
         'ecr', 'get-login-password'
     ], 'docker_ecr_get_token', project, logger=logger, reactor=reactor, exeception_message="Error getting token")
