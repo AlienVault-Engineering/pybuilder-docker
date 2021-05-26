@@ -5,7 +5,7 @@ import random
 import shutil
 import string
 
-from pybuilder.core import Logger, Project, depends, after
+from pybuilder.core import Logger, Project, depends, after, before
 from pybuilder.core import task
 from pybuilder.pluginhelper.external_command import ExternalCommandBuilder
 from pybuilder.reactor import Reactor
@@ -82,6 +82,30 @@ def get_build_img(project):
 @depends("docker_package")
 def docker_push(project, logger, reactor: Reactor):
     do_docker_push(project, logger, reactor)
+
+
+@before("verify")
+def docker_run(project, logger, reactor: Reactor):
+    if project.get_property("run_docker_on_verify",False):
+        exec_command("docker", [
+            "run",
+            "-e",
+            f"ENVIRONMENT={project.get_property('environment')}",
+            "-p",
+            "127.0.0.1:80:5000",
+            "--name",
+            get_build_img(project),
+            f"{get_build_img(project)}"
+        ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+
+@after("verify")
+def docker_kill(project, logger, reactor: Reactor):
+    if project.get_property("run_docker_on_verify",False):
+        exec_command("docker", [
+                "kill",
+                f"{get_build_img(project)}"
+            ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+
 
 # aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
 def _ecr_login(project, registry, logger, reactor):
