@@ -105,8 +105,8 @@ def docker_run(project, logger, reactor: Reactor):
                                           project.name,
                                           f"{img}"], stderr=fp_err, stdout=fp
                                      )
-            # give it a bit of time to start up
-            time.sleep(3)
+        # give it a bit of time to start up
+        time.sleep(3)
 
 @after("verify_tavern", teardown=True)
 def docker_kill(project, logger, reactor: Reactor):
