@@ -102,7 +102,7 @@ def docker_run(project, logger, reactor: Reactor):
                                           "-e",
                                           f"ENVIRONMENT={project.get_property('environment')}",
                                           "-p",
-                                          f"127.0.0.1:{local_port}:{container_port",
+                                          f"127.0.0.1:{local_port}:{container_port}",
                                           "--name",
                                           project.name,
                                           f"{img}"], stderr=fp_err, stdout=fp
