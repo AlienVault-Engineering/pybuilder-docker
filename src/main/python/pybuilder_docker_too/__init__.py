@@ -89,21 +89,24 @@ def docker_push(project, logger, reactor: Reactor):
 @before("verify_tavern")
 def docker_run(project, logger, reactor: Reactor):
     should_run = project.get_property("run_docker_on_verify", False)
-    logger.info(f"Docker run: {should_run}")
     if should_run:
-
+        img = get_build_img(project)
+        logger.info(f"Starting docker image for testing: {img}")
+        # gives me hives but cleans up the output
+        fp = open("{}/{}".format(prepare_reports_directory(project), "docker_run.txt"),'w')
+        fp_err = open("{}/{}".format(prepare_reports_directory(project), "docker_run.err.txt"),'w')
         docker_ps = subprocess.Popen(["docker",
-                                      "run",
-                                      "-e",
-                                      f"ENVIRONMENT={project.get_property('environment')}",
-                                      "-p",
-                                      "127.0.0.1:5000:5000",
-                                      "--name",
-                                      project.name,
-                                      f"{get_build_img(project)}"]
+                                          "run",
+                                          "-e",
+                                          f"ENVIRONMENT={project.get_property('environment')}",
+                                          "-p",
+                                          "127.0.0.1:5000:5000",
+                                          "--name",
+                                          project.name,
+                                          f"{img}"], stderr=fp_err, stdout=fp
                                      )
-        # give it a bit of time to start up
-        time.sleep(5)
+            # give it a bit of time to start up
+            time.sleep(3)
 
 @after("verify_tavern", teardown=True)
 def docker_kill(project, logger, reactor: Reactor):
