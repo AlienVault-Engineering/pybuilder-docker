@@ -92,6 +92,8 @@ def docker_run(project, logger, reactor: Reactor):
     if should_run:
         img = get_build_img(project)
         logger.info(f"Starting docker image for testing: {img}")
+        local_port = project.get_property("run_docker_local_port",5000)
+        container_port = project.get_property("run_docker_container_port",5000)
         # gives me hives but cleans up the output
         fp = open("{}/{}".format(prepare_reports_directory(project), "docker_run.txt"),'w')
         fp_err = open("{}/{}".format(prepare_reports_directory(project), "docker_run.err.txt"),'w')
@@ -100,7 +102,7 @@ def docker_run(project, logger, reactor: Reactor):
                                           "-e",
                                           f"ENVIRONMENT={project.get_property('environment')}",
                                           "-p",
-                                          "127.0.0.1:5000:5000",
+                                          f"127.0.0.1:{local_port}:{container_port",
                                           "--name",
                                           project.name,
                                           f"{img}"], stderr=fp_err, stdout=fp
