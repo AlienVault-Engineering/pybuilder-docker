@@ -4,6 +4,8 @@ import os
 import random
 import shutil
 import string
+import subprocess
+import time
 
 from pybuilder.core import Logger, Project, depends, after, before
 from pybuilder.core import task
@@ -84,27 +86,40 @@ def docker_push(project, logger, reactor: Reactor):
     do_docker_push(project, logger, reactor)
 
 
-@before("verify")
+@before("verify_tavern")
 def docker_run(project, logger, reactor: Reactor):
-    if project.get_property("run_docker_on_verify",False):
-        exec_command("docker", [
-            "run",
-            "-e",
-            f"ENVIRONMENT={project.get_property('environment')}",
-            "-p",
-            "127.0.0.1:80:5000",
-            "--name",
-            get_build_img(project),
-            f"{get_build_img(project)}"
-        ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+    should_run = project.get_property("run_docker_on_verify", False)
+    logger.info(f"Docker run: {should_run}")
+    if should_run:
 
-@after("verify")
+        docker_ps = subprocess.Popen(["docker",
+                                      "run",
+                                      "-e",
+                                      f"ENVIRONMENT={project.get_property('environment')}",
+                                      "-p",
+                                      "127.0.0.1:5000:5000",
+                                      "--name",
+                                      project.name,
+                                      f"{get_build_img(project)}"]
+                                     )
+        # give it a bit of time to start up
+        time.sleep(5)
+
+@after("verify_tavern", teardown=True)
 def docker_kill(project, logger, reactor: Reactor):
-    if project.get_property("run_docker_on_verify",False):
+    should_run = project.get_property("run_docker_on_verify", False)
+    logger.info(f"Docker kill: {should_run}")
+    if should_run:
+        # clean up our test run
         exec_command("docker", [
-                "kill",
-                f"{get_build_img(project)}"
-            ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+            "kill",
+            project.name
+        ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+        # and remove the image so we can run it again
+        exec_command("docker", [
+            "rm",
+            project.name
+        ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
 
 
 # aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
@@ -250,5 +265,5 @@ def prepare_directory(dir_variable, project):
     package__format = f"{dir_variable}/docker"
     reports_dir = project.expand_path(package__format)
     if not os.path.exists(reports_dir):
-        os.mkdir(reports_dir)
+        os.makedirs(reports_dir)
     return reports_dir
