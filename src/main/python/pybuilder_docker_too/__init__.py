@@ -95,8 +95,8 @@ def docker_run(project, logger, reactor: Reactor):
         local_port = project.get_property("run_docker_local_port",5000)
         container_port = project.get_property("run_docker_container_port",5000)
         # gives me hives but cleans up the output
-        fp = open("{}/{}".format(prepare_reports_directory(project), "docker_run.txt"),'w')
-        fp_err = open("{}/{}".format(prepare_reports_directory(project), "docker_run.err.txt"),'w')
+        fp = open("{}/{}".format(prepare_logs_directory(project), "docker_run.txt"), 'w')
+        fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_run.err.txt"), 'w')
         docker_ps = subprocess.Popen(["docker",
                                           "run",
                                           "-e",
@@ -162,7 +162,7 @@ def exec_command(executable, args, output_file_name, project, logger, reactor, e
     command = ExternalCommandBuilder(executable, project, reactor)
     for arg in args:
         command.use_argument(arg)
-    res = command.run("{}/{}".format(prepare_reports_directory(project), output_file_name))
+    res = command.run("{}/{}".format(prepare_logs_directory(project), output_file_name))
     if res.exit_code != 0 and exeception_message:
         logger.error(res.error_report_lines)
         raise Exception(exeception_message)
@@ -258,8 +258,8 @@ def randomWord(param):
     return ''.join(random.choice(string.ascii_lowercase) for i in range(param))
 
 
-def prepare_reports_directory(project):
-    return prepare_directory("$dir_reports", project)
+def prepare_logs_directory(project):
+    return prepare_directory("$dir_logs", project)
 
 
 def prepare_dist_directory(project):
