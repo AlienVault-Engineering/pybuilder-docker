@@ -105,7 +105,7 @@ def get_build_img(project):
 def docker_push(project, logger, reactor: Reactor):
     do_docker_push(project, logger, reactor)
 
-
+@task
 @before("verify_tavern")
 def docker_run(project, logger, reactor: Reactor):
     should_run = project.get_property("run_docker_on_verify", False)
@@ -130,7 +130,7 @@ def docker_run(project, logger, reactor: Reactor):
         # give it a bit of time to start up
         time.sleep(3)
 
-
+@task
 @after("verify_tavern", teardown=True)
 def docker_kill(project, logger, reactor: Reactor):
     should_run = project.get_property("run_docker_on_verify", False)
