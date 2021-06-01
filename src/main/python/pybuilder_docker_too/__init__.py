@@ -19,6 +19,15 @@ COPY ${dist_file} .
 RUN ${prepare_env_cmd}
 RUN ${package_cmd}
 """)
+DOCKER_LOCAL_DEP_TEMPLATE = string.Template("""
+FROM ${build_image}
+MAINTAINER ${maintainer_name}
+RUN mkdir python-install
+COPY ${dist_file} /python-install
+COPY ${dist_dir}/dep /python-install/dep
+RUN ${prepare_env_cmd}
+RUN ${package_cmd}
+""")
 
 
 @task(description="Package artifact into a docker container with the tag "
@@ -30,6 +39,13 @@ RUN ${package_cmd}
 @depends("publish")
 def docker_package(project: Project, logger: Logger, reactor: Reactor):
     do_docker_package(project, logger, reactor)
+
+
+def download_dependencies(dist_dir, project, logger, reactor):
+    dist_file = os.path.join(dist_dir, get_dist_file_name(project))
+    dep_dir = os.path.join(dist_dir, "dep")
+    exec_command("pip", ["download", "--destination-dir", dep_dir, dist_file], "pip_dep_gather", project, logger,
+                 reactor)
 
 
 @after("publish")
@@ -57,8 +73,12 @@ def do_docker_package(project, logger, reactor):
                  ],
                  output_file_name='docker_package_build', project=project, logger=logger, reactor=reactor,
                  exeception_message="Error building primary stage docker image")
-    write_docker_build_file(project=project, build_image=temp_build_img, dist_dir=dist_dir)
     copy_dist_file(project=project, dist_dir=dist_dir)
+    gather_dependencies_locally = project.get_property("gather_dep_locally", False)
+    if gather_dependencies_locally:
+        download_dependencies(dist_dir, project, logger, reactor)
+    write_docker_build_file(project=project, build_image=temp_build_img, dist_dir=dist_dir,
+                            gather_dependencies_locally=gather_dependencies_locally)
     logger.info("Executing secondary stage docker build for image - {}.".format(build_img))
     exec_command(executable="docker",
                  args=[
@@ -92,23 +112,24 @@ def docker_run(project, logger, reactor: Reactor):
     if should_run:
         img = get_build_img(project)
         logger.info(f"Starting docker image for testing: {img}")
-        local_port = project.get_property("run_docker_local_port",5000)
-        container_port = project.get_property("run_docker_container_port",5000)
+        local_port = project.get_property("run_docker_local_port", 5000)
+        container_port = project.get_property("run_docker_container_port", 5000)
         # gives me hives but cleans up the output
         fp = open("{}/{}".format(prepare_logs_directory(project), "docker_run.txt"), 'w')
         fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_run.err.txt"), 'w')
         docker_ps = subprocess.Popen(["docker",
-                                          "run",
-                                          "-e",
-                                          f"ENVIRONMENT={project.get_property('environment')}",
-                                          "-p",
-                                          f"127.0.0.1:{local_port}:{container_port}",
-                                          "--name",
-                                          project.name,
-                                          f"{img}"], stderr=fp_err, stdout=fp
+                                      "run",
+                                      "-e",
+                                      f"ENVIRONMENT={project.get_property('environment')}",
+                                      "-p",
+                                      f"127.0.0.1:{local_port}:{container_port}",
+                                      "--name",
+                                      project.name,
+                                      f"{img}"], stderr=fp_err, stdout=fp
                                      )
         # give it a bit of time to start up
         time.sleep(3)
+
 
 @after("verify_tavern", teardown=True)
 def docker_kill(project, logger, reactor: Reactor):
@@ -119,12 +140,12 @@ def docker_kill(project, logger, reactor: Reactor):
         exec_command("docker", [
             "kill",
             project.name
-        ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+        ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
         # and remove the image so we can run it again
         exec_command("docker", [
             "rm",
             project.name
-        ], output_file_name="docker_run",project=project, logger=logger,reactor=reactor)
+        ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
 
 
 # aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
@@ -219,26 +240,37 @@ def _run_push_cmd(project, remote_img, logger, reactor):
 # docker push ${DOCKER_REGISTRY}/${APPLICATION}/${ROLE}:${BUILD_NUMBER}
 
 def copy_dist_file(project, dist_dir):
-    dist_file = get_dist_file(project=project)
-    dist_file_path = project.expand_path("$dir_dist", 'dist', dist_file)
+    dist_file_path = get_dist_file_path(project)
     shutil.copy2(dist_file_path, dist_dir)
 
 
-def write_docker_build_file(project, build_image, dist_dir):
+def get_dist_file_path(project):
+    dist_file = get_dist_file_name(project=project)
+    dist_file_path = project.expand_path("$dir_dist", 'dist', dist_file)
+    return dist_file_path
+
+
+def write_docker_build_file(project, build_image, dist_dir,gather_dependencies_locally):
     setup_script = os.path.join(dist_dir, "Dockerfile")
     with open(setup_script, "w") as setup_file:
-        setup_file.write(render_docker_buildfile(project, build_image))
+        setup_file.write(render_docker_buildfile(project, build_image,gather_dependencies_locally))
     os.chmod(setup_script, 0o755)
 
 
-def render_docker_buildfile(project, build_image):
+def render_docker_buildfile(project, build_image,gather_dependencies_locally):
     # type: (Project, str) -> str
 
-    dist_file = get_dist_file(project)
+    dist_file = get_dist_file_name(project)
     default_package_cmd = "pip install {}".format(dist_file)
+    if gather_dependencies_locally:
+        default_package_cmd = f"pip install /python-install/{dist_file}  --no-build-isolation  --find-links file:///python-install/dep"
+        template = DOCKER_LOCAL_DEP_TEMPLATE
+    else:
+        template = DOCKER_IMAGE_TEMPLATE
     template_values = {
         "build_image": build_image,
         "dist_file": dist_file,
+        "dist_dir":os.path.dirname(dist_file),
         "maintainer_name": project.get_property("docker_package_image_maintainer",
                                                 "anonymous"),
         "prepare_env_cmd": project.get_property("docker_package_prepare_env_cmd",
@@ -246,10 +278,10 @@ def render_docker_buildfile(project, build_image):
         "package_cmd": project.get_property("docker_package_package_cmd", default_package_cmd)
     }
 
-    return DOCKER_IMAGE_TEMPLATE.substitute(template_values)
+    return template.substitute(template_values)
 
 
-def get_dist_file(project):
+def get_dist_file_name(project):
     default_dist_file = "{name}-{version}.tar.gz".format(name=project.name, version=project.version)
     return project.get_property("docker_package_dist_file", default_dist_file)
 
