@@ -101,7 +101,6 @@ def get_build_img(project):
                   "                       (If you provide an AWS ECR registry the aws cli will be used to authenticate.)"
                   "${docker_push_tag_as_latest} - tag the image as LATEST before push (default TRUE)"
                   "${ensure_ecr_registry_created} - create the ECR registry if it doesn't exist (default TRUE)")
-@depends("docker_package")
 def docker_push(project, logger, reactor: Reactor):
     do_docker_push(project, logger, reactor)
 
