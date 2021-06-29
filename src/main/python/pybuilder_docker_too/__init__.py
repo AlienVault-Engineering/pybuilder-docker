@@ -44,7 +44,10 @@ def docker_package(project: Project, logger: Logger, reactor: Reactor):
 def download_dependencies(dist_dir, project, logger, reactor):
     dist_file = os.path.join(dist_dir, get_dist_file_name(project))
     dep_dir = os.path.join(dist_dir, "dep")
-    exec_command("pip", ["download", "--destination-dir", dep_dir, dist_file], "pip_dep_gather", project, logger,
+    args = ["download", "--destination-dir", dep_dir, dist_file]
+    if project.get_property("gather_skip_dependencies",False):
+        args.append("--no-deps")
+    exec_command("pip", args, "pip_dep_gather", project, logger,
                  reactor)
 
 
