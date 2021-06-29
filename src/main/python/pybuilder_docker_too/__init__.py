@@ -46,7 +46,7 @@ def download_dependencies(dist_dir, project, logger, reactor):
     dep_dir = os.path.join(dist_dir, "dep")
     authorized_dependencies  =project.get_property("gather_authorized_dependencies_requirements_file", None)
     if authorized_dependencies:
-        exec_command("pip", ["download", "--no-deps", "--destination-dir", dep_dir, authorized_dependencies], "pip_dep_gather", project, logger,
+        exec_command("pip", ["download", "--no-deps", "--destination-dir", dep_dir,"-r", authorized_dependencies], "pip_dep_gather", project, logger,
                      reactor)
     else:
         exec_command("pip", ["download", "--destination-dir", dep_dir, dist_file], "pip_dep_gather", project, logger,
