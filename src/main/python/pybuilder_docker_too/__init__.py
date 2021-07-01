@@ -131,8 +131,7 @@ def do_docker_run(project, logger, reactor: Reactor):
                 "-p",
                 f"127.0.0.1:{local_port}:{container_port}",
                 "--name",
-                project.name,
-                f"{img}"]
+                project.name]
         if project.get_property("propagate_aws_credentials",True):
             if os.environ.get('AWS_ACCESS_KEY_ID'):
                 logger.info("Propagating AWS credentials into container from env")
@@ -148,6 +147,9 @@ def do_docker_run(project, logger, reactor: Reactor):
                     "-v",
                     "$HOME/.aws/credentials:/root/.aws/credentials:ro"
                 ])
+        # add the image last so nothing is interpreted as args
+        args.append( f"{img}")
+        logger.debug(f"Running docker with {args}")
         docker_ps = subprocess.Popen(args, stderr=fp_err, stdout=fp
                                      )
         # give it a bit of time to start up
