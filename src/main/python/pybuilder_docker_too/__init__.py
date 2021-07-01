@@ -124,15 +124,31 @@ def do_docker_run(project, logger, reactor: Reactor):
         # gives me hives but cleans up the output
         fp = open("{}/{}".format(prepare_logs_directory(project), "docker_run.txt"), 'w')
         fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_run.err.txt"), 'w')
-        docker_ps = subprocess.Popen(["docker",
-                                      "run",
-                                      "-e",
-                                      f"ENVIRONMENT={project.get_property('environment')}",
-                                      "-p",
-                                      f"127.0.0.1:{local_port}:{container_port}",
-                                      "--name",
-                                      project.name,
-                                      f"{img}"], stderr=fp_err, stdout=fp
+        args = ["docker",
+                "run",
+                "-e",
+                f"ENVIRONMENT={project.get_property('environment')}",
+                "-p",
+                f"127.0.0.1:{local_port}:{container_port}",
+                "--name",
+                project.name,
+                f"{img}"]
+        if project.get_property("propagate_aws_credentials",True):
+            if os.environ.get('AWS_ACCESS_KEY_ID'):
+                logger.info("Propagating AWS credentials into container from env")
+
+                args.extend([
+                    "-e",
+                    f"AWS_ACCESS_KEY_ID={os.environ.get('AWS_ACCESS_KEY_ID')}",
+                    "-e",
+                    f"AWS_SECRET_ACCESS_KEY={os.environ.get('AWS_SECRET_ACCESS_KEY')}" ])
+            else:
+                logger.info("Propagating AWS credentials into container from .aws")
+                args.extend([
+                    "-v",
+                    "$HOME/.aws/credentials:/root/.aws/credentials:ro"
+                ])
+        docker_ps = subprocess.Popen(args, stderr=fp_err, stdout=fp
                                      )
         # give it a bit of time to start up
         time.sleep(3)
