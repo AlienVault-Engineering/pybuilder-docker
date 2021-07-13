@@ -145,7 +145,7 @@ def do_docker_run(project, logger, reactor: Reactor):
                 logger.info("Propagating AWS credentials into container from .aws")
                 args.extend([
                     "-v",
-                    "$HOME/.aws/credentials:/root/.aws/credentials:ro"
+                    f"{os.environ.get('HOME')}/.aws/credentials:/root/.aws/credentials:ro"
                 ])
         # add the image last so nothing is interpreted as args
         args.append( f"{img}")
