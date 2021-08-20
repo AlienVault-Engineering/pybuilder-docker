@@ -7,7 +7,7 @@ import string
 import subprocess
 import time
 
-from pybuilder.core import Logger, Project, depends, after, before
+from pybuilder.core import Logger, Project, depends, after, before, init
 from pybuilder.core import task
 from pybuilder.pluginhelper.external_command import ExternalCommandBuilder
 from pybuilder.reactor import Reactor
@@ -30,6 +30,11 @@ RUN ${package_cmd}
 """)
 
 
+@init
+def init_plugin(project: Project, logger: Logger, reactor: Reactor):
+    project.set_property_if_unset('docker_package_pip_args', [])
+
+
 @task(description="Package artifact into a docker container with the tag "
                   "${docker_package_build_img}:${docker_package_build_version} (defaults to ${project.name} and ${project.version}).  "
                   "This task expects a docker file to be located in 'src/main/docker' (override with property"
@@ -44,17 +49,20 @@ def docker_package(project: Project, logger: Logger, reactor: Reactor):
 def download_dependencies(dist_dir, project, logger, reactor):
     dist_file = os.path.join(dist_dir, get_dist_file_name(project))
     dep_dir = os.path.join(dist_dir, "dep")
-    authorized_dependencies  =project.get_property("gather_authorized_dependencies_requirements_file", None)
+    authorized_dependencies = project.get_property("gather_authorized_dependencies_requirements_file", None)
     if authorized_dependencies:
-        exec_command("pip", ["download","--no-cache-dir", "--no-deps", "--destination-dir", dep_dir,"-r", authorized_dependencies], "pip_dep_gather", project, logger,
+        exec_command("pip", ["download", "--no-cache-dir", "--no-deps", "--destination-dir", dep_dir, "-r",
+                             authorized_dependencies], "pip_dep_gather", project, logger,
                      reactor)
     else:
-        exec_command("pip", ["download","--no-cache-dir", "--destination-dir", dep_dir, dist_file], "pip_dep_gather", project, logger,
+        exec_command("pip", ["download", "--no-cache-dir", "--destination-dir", dep_dir, dist_file], "pip_dep_gather",
+                     project, logger,
                      reactor)
 
 
 @after("publish")
 def do_docker_package(project, logger, reactor):
+    logger.info("Starting docker publish")
     project.set_property_if_unset("docker_package_build_dir", "src/main/docker")
     project.set_property_if_unset("docker_package_build_img", project.name)
     project.set_property_if_unset("docker_package_build_version", project.version)
@@ -66,7 +74,6 @@ def do_docker_package(project, logger, reactor):
     temp_build_img = 'pyb-temp-{}:{}'.format(project.name, project.version)
     build_img = get_build_img(project)
     logger.info("Executing primary stage docker build for image - {}.".format(build_img))
-    # docker build --build-arg buildVersion=${BUILD_NUMBER} -t ${BUILD_IMG} src/
     exec_command(executable="docker",
                  args=[
                      'build',
@@ -109,9 +116,11 @@ def get_build_img(project):
 def docker_push(project, logger, reactor: Reactor):
     do_docker_push(project, logger, reactor)
 
+
 @task
 def docker_run(project, logger, reactor: Reactor):
-    do_docker_run(project,logger,reactor)
+    do_docker_run(project, logger, reactor)
+
 
 @before("verify_tavern")
 def do_docker_run(project, logger, reactor: Reactor):
@@ -132,7 +141,7 @@ def do_docker_run(project, logger, reactor: Reactor):
                 f"127.0.0.1:{local_port}:{container_port}",
                 "--name",
                 project.name]
-        if project.get_property("propagate_aws_credentials",True):
+        if project.get_property("propagate_aws_credentials", True):
             if os.environ.get('AWS_ACCESS_KEY_ID'):
                 logger.info("Propagating AWS credentials into container from env")
 
@@ -140,7 +149,7 @@ def do_docker_run(project, logger, reactor: Reactor):
                     "-e",
                     f"AWS_ACCESS_KEY_ID={os.environ.get('AWS_ACCESS_KEY_ID')}",
                     "-e",
-                    f"AWS_SECRET_ACCESS_KEY={os.environ.get('AWS_SECRET_ACCESS_KEY')}" ])
+                    f"AWS_SECRET_ACCESS_KEY={os.environ.get('AWS_SECRET_ACCESS_KEY')}"])
             else:
                 logger.info("Propagating AWS credentials into container from .aws")
                 args.extend([
@@ -148,16 +157,18 @@ def do_docker_run(project, logger, reactor: Reactor):
                     f"{os.environ.get('HOME')}/.aws/credentials:/root/.aws/credentials:ro"
                 ])
         # add the image last so nothing is interpreted as args
-        args.append( f"{img}")
+        args.append(f"{img}")
         logger.debug(f"Running docker with {args}")
         docker_ps = subprocess.Popen(args, stderr=fp_err, stdout=fp
                                      )
         # give it a bit of time to start up
         time.sleep(3)
 
+
 @task
 def docker_kill(project, logger, reactor: Reactor):
     do_docker_kill(project, logger, reactor)
+
 
 @after("verify_tavern", teardown=True)
 def do_docker_kill(project, logger, reactor: Reactor):
@@ -208,6 +219,7 @@ def _create_ecr_registry(fq_artifact, project, logger, reactor):
 
 
 def exec_command(executable, args, output_file_name, project, logger, reactor, exeception_message=None):
+    logger.debug(f"Executing command {executable} with args: {args}")
     command = ExternalCommandBuilder(executable, project, reactor)
     for arg in args:
         command.use_argument(arg)
@@ -278,27 +290,30 @@ def get_dist_file_path(project):
     return dist_file_path
 
 
-def write_docker_build_file(project, build_image, dist_dir,gather_dependencies_locally):
+def write_docker_build_file(project, build_image, dist_dir, gather_dependencies_locally):
     setup_script = os.path.join(dist_dir, "Dockerfile")
     with open(setup_script, "w") as setup_file:
-        setup_file.write(render_docker_buildfile(project, build_image,gather_dependencies_locally))
+        setup_file.write(render_docker_buildfile(project, build_image, gather_dependencies_locally))
     os.chmod(setup_script, 0o755)
 
 
-def render_docker_buildfile(project, build_image,gather_dependencies_locally):
+def render_docker_buildfile(project, build_image, gather_dependencies_locally):
     # type: (Project, str) -> str
 
     dist_file = get_dist_file_name(project)
     default_package_cmd = "pip install {}".format(dist_file)
     if gather_dependencies_locally:
-        default_package_cmd = f"pip install /python-install/{dist_file}  --no-build-isolation  --find-links file:///python-install/dep"
+        pip_args = project.get_property("docker_package_pip_args", ['--no-build-isolation'])
+        default_package_cmd = f"pip install /python-install/{dist_file}  --find-links file:///python-install/dep"
+        for arg in pip_args:
+            default_package_cmd = f"{default_package_cmd} {arg}"
         template = DOCKER_LOCAL_DEP_TEMPLATE
     else:
         template = DOCKER_IMAGE_TEMPLATE
     template_values = {
         "build_image": build_image,
         "dist_file": dist_file,
-        "dist_dir":os.path.dirname(dist_file),
+        "dist_dir": os.path.dirname(dist_file),
         "maintainer_name": project.get_property("docker_package_image_maintainer",
                                                 "anonymous"),
         "prepare_env_cmd": project.get_property("docker_package_prepare_env_cmd",
