@@ -33,7 +33,7 @@ def do_docker_package(project, logger):
     project.set_property_if_unset("docker_package_build_version", project.version)
     report_dir = prepare_reports_directory(project)
     dist_dir = prepare_dist_directory(project)
-    assert_can_execute(["docker", "--version"], prerequisite="docker", caller="docker_package")
+    assert_can_execute(["docker", "--version"], env=None, prerequisite="docker", caller="docker_package")
     # is true if user set verbose in build.py or from command line
     verbose = project.get_property("verbose")
     project.set_property_if_unset("docker_package_verbose_output", verbose)
