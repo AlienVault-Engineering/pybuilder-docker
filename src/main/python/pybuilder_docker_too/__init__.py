@@ -231,6 +231,8 @@ def exec_command(executable, args, output_file_name, project, logger, reactor, e
 
 
 def do_docker_push(project: Project, logger: Logger, reactor: Reactor):
+    if project.get_property("abort_docker_push"):
+        return
     verbose = project.get_property("verbose")
     project.set_property_if_unset("docker_push_verbose_output", verbose)
     tag_as_latest = project.get_property("docker_push_tag_as_latest", True)
