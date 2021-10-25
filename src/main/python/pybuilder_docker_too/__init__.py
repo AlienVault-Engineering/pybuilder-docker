@@ -136,7 +136,7 @@ def do_docker_run(project, logger, reactor: Reactor):
         args = ["docker",
                 "run",
                 "-e",
-                f"ENVIRONMENT={project.get_property('environment')}",
+                f"ENVIRONMENT={project.get_property('ENVIRONMENT')}",
                 "-p",
                 f"127.0.0.1:{local_port}:{container_port}",
                 "--name",
