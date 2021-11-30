@@ -161,8 +161,8 @@ def do_docker_run(project, logger, reactor: Reactor):
         if project.get_property('run_pretest_executable',False):
             executable = project.get_property("pretest_executable",None)
             if executable:
-                args = project.get_property("pretest_args",[])
-                exec_command(executable=executable, args=args,output_file_name="pretest_executable",
+                pretest_args = project.get_property("pretest_args",[])
+                exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
                              project=project,logger=logger,reactor=reactor)
         # add the image last so nothing is interpreted as args
         args.append(f"{img}")
