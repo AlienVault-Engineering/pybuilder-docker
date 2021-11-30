@@ -144,7 +144,6 @@ def do_docker_run(project, logger, reactor: Reactor):
         if project.get_property("propagate_aws_credentials", True):
             if os.environ.get('AWS_ACCESS_KEY_ID'):
                 logger.info("Propagating AWS credentials into container from env")
-
                 args.extend([
                     "-e",
                     f"AWS_ACCESS_KEY_ID={os.environ.get('AWS_ACCESS_KEY_ID')}",
@@ -156,6 +155,15 @@ def do_docker_run(project, logger, reactor: Reactor):
                     "-v",
                     f"{os.environ.get('HOME')}/.aws/credentials:/root/.aws/credentials:ro"
                 ])
+        mount_volume = project.get_property("mount_volume", None)
+        if mount_volume:
+            args.extend(["-v",":".join(mount_volume)])
+        if project.get_property('run_pretest_executable',False):
+            executable = project.get_property("pretest_executable",None)
+            if executable:
+                args = project.get_property("pretest_args",[])
+                exec_command(executable=executable, args=args,output_file_name="pretest_executable",
+                             project=project,logger=logger,reactor=reactor)
         # add the image last so nothing is interpreted as args
         args.append(f"{img}")
         logger.debug(f"Running docker with {args}")
