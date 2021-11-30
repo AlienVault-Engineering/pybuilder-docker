@@ -163,7 +163,7 @@ def do_docker_run(project, logger, reactor: Reactor):
             if executable:
                 pretest_args = project.get_property("pretest_args",[])
                 if project.get_property("pretest_python_executable",True):
-                    env_ = reactor.python_env_registry['pybuilder'].executable[0]
+                    env_ = reactor.python_env_registry['build'].executable[0]
                     env_ = env_[:env_.rfind('/')]
                     executable = f"{env_}/{executable}"
                 exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
