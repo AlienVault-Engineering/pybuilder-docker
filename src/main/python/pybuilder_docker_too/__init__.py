@@ -162,6 +162,10 @@ def do_docker_run(project, logger, reactor: Reactor):
             executable = project.get_property("pretest_executable",None)
             if executable:
                 pretest_args = project.get_property("pretest_args",[])
+                if project.get_property("pretest_python_executable",True):
+                    env_ = reactor.python_env_registry['pybuilder'].executable[0]
+                    env_ = env_[:env_.rfind('/')]
+                    executable = f"{env_}/{executable}"
                 exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
                              project=project,logger=logger,reactor=reactor)
         # add the image last so nothing is interpreted as args
