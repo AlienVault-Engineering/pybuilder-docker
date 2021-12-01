@@ -123,6 +123,7 @@ def docker_run(project, logger, reactor: Reactor):
 
 
 @before("verify_tavern")
+@depends('prepare')
 def do_docker_run(project, logger, reactor: Reactor):
     should_run = project.get_property("run_docker_on_verify", False)
     if should_run:
