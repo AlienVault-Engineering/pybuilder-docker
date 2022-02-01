@@ -66,6 +66,10 @@ def do_docker_package(project, logger, reactor):
     project.set_property_if_unset("docker_package_build_dir", "src/main/docker")
     project.set_property_if_unset("docker_package_build_img", project.name)
     project.set_property_if_unset("docker_package_build_version", project.version)
+    ecr_login_before_build = project.get_property("docker_package_ecr_login_before_build", False)
+    if ecr_login_before_build:
+        registry = project.get_mandatory_property("docker_push_registry")
+        _ecr_login(project, registry, logger, reactor)
     dist_dir = prepare_dist_directory(project)
     reactor.pybuilder_venv.verify_can_execute(["docker", "--version"], prerequisite="docker", caller="docker_package")
     # is true if user set verbose in build.py or from command line
