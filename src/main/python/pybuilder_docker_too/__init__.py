@@ -265,7 +265,7 @@ def do_docker_push(project: Project, logger: Logger, reactor: Reactor):
     for tag in tags:
         remote_img = f"{registry_path}:{tag}"
         _run_tag_cmd(project, local_img, remote_img, logger, reactor)
-        _run_push_cmd(project=project, remote_img=remote_img, logger=logger, reactor=reactor)
+    _run_push_cmd(project=project, remote_img=remote_img, logger=logger, reactor=reactor)
     generate_artifact_manifest(project, registry_path)
 
 
