@@ -265,7 +265,7 @@ def do_docker_push(project: Project, logger: Logger, reactor: Reactor):
     for tag in tags:
         remote_img = f"{registry_path}:{tag}"
         _run_tag_cmd(project, local_img, remote_img, logger, reactor)
-    _run_push_cmd(project=project, remote_img=registry_path, logger=logger, reactor=reactor)
+        _run_push_cmd(project=project, remote_img=remote_img, logger=logger, reactor=reactor)
     generate_artifact_manifest(project, registry_path)
 
 
@@ -286,7 +286,7 @@ def _run_tag_cmd(project, local_img, remote_img, logger, reactor):
 
 def _run_push_cmd(project, remote_img, logger, reactor):
     logger.info("Pushing remote docker image - {}".format(remote_img))
-    exec_command('docker', ['push','--all-tags', f"{remote_img}"], 'docker_push', project,
+    exec_command('docker', ['push', f"{remote_img}"], 'docker_push', project,
                  logger=logger,
                  reactor=reactor,
                  exeception_message=f"Error pushing image to remote registry - {remote_img}")
