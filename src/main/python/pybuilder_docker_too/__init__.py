@@ -123,12 +123,17 @@ def docker_push(project, logger, reactor: Reactor):
 
 @task
 def docker_run(project, logger, reactor: Reactor):
-    do_docker_run(project, logger, reactor)
+    do_docker_run_tak(project, logger, reactor)
 
 
 @before("verify_tavern")
 @depends('prepare')
-def do_docker_run(project, logger, reactor: Reactor):
+def do_docker_run_tak(project, logger, reactor: Reactor):
+    _run_docker_compose(project, logger)
+    _run_docker_container(project, logger, reactor)
+
+
+def _run_docker_container(project, logger, reactor: Reactor):
     should_run = project.get_property("run_docker_on_verify", False)
     if should_run:
         img = get_build_img(project)
@@ -182,6 +187,26 @@ def do_docker_run(project, logger, reactor: Reactor):
         time.sleep(3)
 
 
+def _run_docker_compose(project, logger):
+    should_run = project.get_property("run_docker_compose_on_verify", False)
+    compose_file = project.get_property('docker_compose_path_verify', '')
+    if should_run and compose_file:
+        logger.info(f"Starting docker compose for testing: {compose_file}")
+        # gives me hives but cleans up the output
+        fp = open("{}/{}".format(prepare_logs_directory(project), "docker_compose_run.txt"), 'w')
+        fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_compose_run.err.txt"), 'w')
+        args = ["docker-compose",
+                "-f",
+                compose_file,
+                "up",
+                "-d"]
+
+        logger.debug(f"Running docker template with {args}")
+        subprocess.Popen(args, stderr=fp_err, stdout=fp)
+
+        # give it a bit of time to start up
+        time.sleep(3)
+
 @task
 def docker_kill(project, logger, reactor: Reactor):
     do_docker_kill(project, logger, reactor)
@@ -189,6 +214,11 @@ def docker_kill(project, logger, reactor: Reactor):
 
 @after("verify_tavern", teardown=True)
 def do_docker_kill(project, logger, reactor: Reactor):
+    _docker_container_kill(project, logger, reactor)
+    _docker_compose_down(project, logger, reactor)
+
+
+def _docker_container_kill(project, logger, reactor: Reactor):
     should_run = project.get_property("run_docker_on_verify", False)
     logger.info(f"Docker kill: {should_run}")
     if should_run:
@@ -202,6 +232,19 @@ def do_docker_kill(project, logger, reactor: Reactor):
             "rm",
             project.name
         ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
+
+
+def _docker_compose_down(project, logger, reactor: Reactor):
+    should_run = project.get_property("run_docker_compose_on_verify", False)
+    compose_file = project.get_property('docker_compose_path_verify', '')
+    if should_run and compose_file:
+        logger.info(f"Docker Compose Down: {compose_file}")
+        # clean up our test run
+        exec_command("docker-compose", [
+            "-f",
+            compose_file,
+            "down"
+        ], output_file_name="docker_compose_run", project=project, logger=logger, reactor=reactor)
 
 
 # aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
