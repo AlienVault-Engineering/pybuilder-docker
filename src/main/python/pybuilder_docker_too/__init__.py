@@ -201,7 +201,7 @@ def _run_docker_compose(project, logger):
                 "up",
                 "-d"]
 
-        logger.debug(f"Running docker template with {args}")
+        logger.debug(f"Running docker-compose with {args}")
         subprocess.Popen(args, stderr=fp_err, stdout=fp)
 
         # give it a bit of time to start up
