@@ -123,12 +123,12 @@ def docker_push(project, logger, reactor: Reactor):
 
 @task
 def docker_run(project, logger, reactor: Reactor):
-    do_docker_run_tak(project, logger, reactor)
+    do_docker_run_task(project, logger, reactor)
 
 
 @before("verify_tavern")
 @depends('prepare')
-def do_docker_run_tak(project, logger, reactor: Reactor):
+def do_docker_run_task(project, logger, reactor: Reactor):
     _run_docker_compose(project, logger)
     _run_docker_container(project, logger, reactor)
 
