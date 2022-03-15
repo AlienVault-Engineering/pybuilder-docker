@@ -129,68 +129,67 @@ def docker_run(project, logger, reactor: Reactor):
 @before("verify_tavern")
 @depends('prepare')
 def do_docker_run_task(project, logger, reactor: Reactor):
-    _run_docker_compose(project, logger)
-    _run_docker_container(project, logger, reactor)
+    if project.get_property("run_docker_compose_on_verify", False):
+        _run_docker_compose(project, logger)
+    elif project.get_property("run_docker_on_verify", False):
+        _run_docker_container(project, logger, reactor)
 
 
 def _run_docker_container(project, logger, reactor: Reactor):
-    should_run = project.get_property("run_docker_on_verify", False)
-    if should_run:
-        img = get_build_img(project)
-        logger.info(f"Starting docker image for testing: {img}")
-        local_port = project.get_property("run_docker_local_port", 5000)
-        container_port = project.get_property("run_docker_container_port", 5000)
-        # gives me hives but cleans up the output
-        fp = open("{}/{}".format(prepare_logs_directory(project), "docker_run.txt"), 'w')
-        fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_run.err.txt"), 'w')
-        args = ["docker",
-                "run",
+    img = get_build_img(project)
+    logger.info(f"Starting docker image for testing: {img}")
+    local_port = project.get_property("run_docker_local_port", 5000)
+    container_port = project.get_property("run_docker_container_port", 5000)
+    # gives me hives but cleans up the output
+    fp = open("{}/{}".format(prepare_logs_directory(project), "docker_run.txt"), 'w')
+    fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_run.err.txt"), 'w')
+    args = ["docker",
+            "run",
+            "-e",
+            f"ENVIRONMENT={project.get_property('ENVIRONMENT')}",
+            "-p",
+            f"127.0.0.1:{local_port}:{container_port}",
+            "--name",
+            project.name]
+    if project.get_property("propagate_aws_credentials", True):
+        if os.environ.get('AWS_ACCESS_KEY_ID'):
+            logger.info("Propagating AWS credentials into container from env")
+            args.extend([
                 "-e",
-                f"ENVIRONMENT={project.get_property('ENVIRONMENT')}",
-                "-p",
-                f"127.0.0.1:{local_port}:{container_port}",
-                "--name",
-                project.name]
-        if project.get_property("propagate_aws_credentials", True):
-            if os.environ.get('AWS_ACCESS_KEY_ID'):
-                logger.info("Propagating AWS credentials into container from env")
-                args.extend([
-                    "-e",
-                    f"AWS_ACCESS_KEY_ID={os.environ.get('AWS_ACCESS_KEY_ID')}",
-                    "-e",
-                    f"AWS_SECRET_ACCESS_KEY={os.environ.get('AWS_SECRET_ACCESS_KEY')}"])
-            else:
-                logger.info("Propagating AWS credentials into container from .aws")
-                args.extend([
-                    "-v",
-                    f"{os.environ.get('HOME')}/.aws/credentials:/root/.aws/credentials:ro"
-                ])
-        mount_volume = project.get_property("mount_volume", None)
-        if mount_volume:
-            args.extend(["-v",":".join(mount_volume)])
-        if project.get_property('run_pretest_executable',False):
-            executable = project.get_property("pretest_executable",None)
-            if executable:
-                pretest_args = project.get_property("pretest_args",[])
-                if project.get_property("pretest_python_executable",True):
-                    env_ = reactor.python_env_registry['build'].executable[0]
-                    env_ = env_[:env_.rfind('/')]
-                    executable = f"{env_}/{executable}"
-                exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
-                             project=project,logger=logger,reactor=reactor)
-        # add the image last so nothing is interpreted as args
-        args.append(f"{img}")
-        logger.debug(f"Running docker with {args}")
-        docker_ps = subprocess.Popen(args, stderr=fp_err, stdout=fp
-                                     )
-        # give it a bit of time to start up
-        time.sleep(3)
+                f"AWS_ACCESS_KEY_ID={os.environ.get('AWS_ACCESS_KEY_ID')}",
+                "-e",
+                f"AWS_SECRET_ACCESS_KEY={os.environ.get('AWS_SECRET_ACCESS_KEY')}"])
+        else:
+            logger.info("Propagating AWS credentials into container from .aws")
+            args.extend([
+                "-v",
+                f"{os.environ.get('HOME')}/.aws/credentials:/root/.aws/credentials:ro"
+            ])
+    mount_volume = project.get_property("mount_volume", None)
+    if mount_volume:
+        args.extend(["-v",":".join(mount_volume)])
+    if project.get_property('run_pretest_executable',False):
+        executable = project.get_property("pretest_executable",None)
+        if executable:
+            pretest_args = project.get_property("pretest_args",[])
+            if project.get_property("pretest_python_executable",True):
+                env_ = reactor.python_env_registry['build'].executable[0]
+                env_ = env_[:env_.rfind('/')]
+                executable = f"{env_}/{executable}"
+            exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
+                         project=project,logger=logger,reactor=reactor)
+    # add the image last so nothing is interpreted as args
+    args.append(f"{img}")
+    logger.debug(f"Running docker with {args}")
+    docker_ps = subprocess.Popen(args, stderr=fp_err, stdout=fp
+                                 )
+    # give it a bit of time to start up
+    time.sleep(3)
 
 
 def _run_docker_compose(project, logger):
-    should_run = project.get_property("run_docker_compose_on_verify", False)
-    compose_file = project.get_property('docker_compose_path_verify', '')
-    if should_run and compose_file:
+    compose_file = _get_docker_compose_file(project)
+    if compose_file:
         logger.info(f"Starting docker compose for testing: {compose_file}")
         # gives me hives but cleans up the output
         fp = open("{}/{}".format(prepare_logs_directory(project), "docker_compose_run.txt"), 'w')
@@ -214,30 +213,29 @@ def docker_kill(project, logger, reactor: Reactor):
 
 @after("verify_tavern", teardown=True)
 def do_docker_kill(project, logger, reactor: Reactor):
-    _docker_container_kill(project, logger, reactor)
-    _docker_compose_down(project, logger, reactor)
+    if project.get_property("run_docker_compose_on_verify", False):
+        _docker_compose_down(project, logger, reactor)
+    elif project.get_property("run_docker_on_verify", False):
+        _docker_container_kill(project, logger, reactor)
 
 
 def _docker_container_kill(project, logger, reactor: Reactor):
-    should_run = project.get_property("run_docker_on_verify", False)
-    logger.info(f"Docker kill: {should_run}")
-    if should_run:
-        # clean up our test run
-        exec_command("docker", [
-            "kill",
-            project.name
-        ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
-        # and remove the image so we can run it again
-        exec_command("docker", [
-            "rm",
-            project.name
-        ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
+    logger.info("Docker Kill")
+    # clean up our test run
+    exec_command("docker", [
+        "kill",
+        project.name
+    ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
+    # and remove the image so we can run it again
+    exec_command("docker", [
+        "rm",
+        project.name
+    ], output_file_name="docker_run", project=project, logger=logger, reactor=reactor)
 
 
 def _docker_compose_down(project, logger, reactor: Reactor):
-    should_run = project.get_property("run_docker_compose_on_verify", False)
-    compose_file = project.get_property('docker_compose_path_verify', '')
-    if should_run and compose_file:
+    compose_file = _get_docker_compose_file(project)
+    if compose_file:
         logger.info(f"Docker Compose Down: {compose_file}")
         # clean up our test run
         exec_command("docker-compose", [
@@ -384,6 +382,11 @@ def render_docker_buildfile(project, build_image, gather_dependencies_locally):
     }
 
     return template.substitute(template_values)
+
+
+def _get_docker_compose_file(project):
+    file_path = project.get_property('docker_compose_path_verify', '/src/unittest/docker/test-compose.yml')
+    return file_path if file_path and os.path.exists(file_path) else None
 
 
 def get_dist_file_name(project):
