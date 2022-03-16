@@ -130,7 +130,7 @@ def docker_run(project, logger, reactor: Reactor):
 @depends('prepare')
 def do_docker_run_task(project, logger, reactor: Reactor):
     if project.get_property("run_docker_compose_on_verify", False):
-        _run_docker_compose(project, logger)
+        _run_docker_compose(project, logger, reactor)
     elif project.get_property("run_docker_on_verify", False):
         _run_docker_container(project, logger, reactor)
 
@@ -168,26 +168,20 @@ def _run_docker_container(project, logger, reactor: Reactor):
     mount_volume = project.get_property("mount_volume", None)
     if mount_volume:
         args.extend(["-v",":".join(mount_volume)])
-    if project.get_property('run_pretest_executable',False):
-        executable = project.get_property("pretest_executable",None)
-        if executable:
-            pretest_args = project.get_property("pretest_args",[])
-            if project.get_property("pretest_python_executable",True):
-                env_ = reactor.python_env_registry['build'].executable[0]
-                env_ = env_[:env_.rfind('/')]
-                executable = f"{env_}/{executable}"
-            exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
-                         project=project,logger=logger,reactor=reactor)
     # add the image last so nothing is interpreted as args
     args.append(f"{img}")
+
     logger.debug(f"Running docker with {args}")
-    docker_ps = subprocess.Popen(args, stderr=fp_err, stdout=fp
-                                 )
+    subprocess.Popen(args, stderr=fp_err, stdout=fp)
+
     # give it a bit of time to start up
     time.sleep(3)
+    # run pretest code
+    _run_pretest_executable(project, logger, reactor)
 
 
-def _run_docker_compose(project, logger):
+
+def _run_docker_compose(project, logger, reactor: Reactor):
     compose_file = _get_docker_compose_file(project)
     if compose_file:
         logger.info(f"Starting docker compose for testing: {compose_file}")
@@ -205,6 +199,10 @@ def _run_docker_compose(project, logger):
 
         # give it a bit of time to start up
         time.sleep(3)
+        # run pretest code
+        _run_pretest_executable(project, logger, reactor)
+
+
 
 @task
 def docker_kill(project, logger, reactor: Reactor):
@@ -243,6 +241,19 @@ def _docker_compose_down(project, logger, reactor: Reactor):
             compose_file,
             "down"
         ], output_file_name="docker_compose_run", project=project, logger=logger, reactor=reactor)
+
+
+def _run_pretest_executable(project, logger, reactor):
+    if project.get_property('run_pretest_executable', False):
+        executable = project.get_property("pretest_executable", None)
+        if executable:
+            pretest_args = project.get_property("pretest_args", [])
+            if project.get_property("pretest_python_executable", True):
+                env_ = reactor.python_env_registry['build'].executable[0]
+                env_ = env_[:env_.rfind('/')]
+                executable = f"{env_}/{executable}"
+            exec_command(executable=executable, args=pretest_args,output_file_name="pretest_executable",
+                         project=project,logger=logger,reactor=reactor)
 
 
 # aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
@@ -385,7 +396,7 @@ def render_docker_buildfile(project, build_image, gather_dependencies_locally):
 
 
 def _get_docker_compose_file(project):
-    file_path = project.get_property('docker_compose_path_verify', '/src/unittest/docker/test-compose.yml')
+    file_path = project.get_property('docker_compose_path_verify', 'src/integrationtest/resources/test_compose.yml')
     return file_path if file_path and os.path.exists(file_path) else None
 
 
