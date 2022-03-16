@@ -174,10 +174,11 @@ def _run_docker_container(project, logger, reactor: Reactor):
     logger.debug(f"Running docker with {args}")
     subprocess.Popen(args, stderr=fp_err, stdout=fp)
 
-    _run_pretest_executable(project, logger, reactor)
-
     # give it a bit of time to start up
     time.sleep(3)
+    # run pretest code
+    _run_pretest_executable(project, logger, reactor)
+
 
 
 def _run_docker_compose(project, logger, reactor: Reactor):
@@ -196,10 +197,12 @@ def _run_docker_compose(project, logger, reactor: Reactor):
         logger.debug(f"Running docker-compose with {args}")
         subprocess.Popen(args, stderr=fp_err, stdout=fp)
 
-        _run_pretest_executable(project, logger, reactor)
-
         # give it a bit of time to start up
         time.sleep(3)
+        # run pretest code
+        _run_pretest_executable(project, logger, reactor)
+
+
 
 @task
 def docker_kill(project, logger, reactor: Reactor):
