@@ -180,15 +180,17 @@ def _run_docker_container(project, logger, reactor: Reactor):
     _run_pretest_executable(project, logger, reactor)
 
 
-
 def _run_docker_compose(project, logger, reactor: Reactor):
     compose_file = _get_docker_compose_file(project)
     if compose_file:
         logger.info(f"Starting docker compose for testing: {compose_file}")
+        compose_variables = project.get_property("docker_compose_variables", '')
         # gives me hives but cleans up the output
         fp = open("{}/{}".format(prepare_logs_directory(project), "docker_compose_run.txt"), 'w')
         fp_err = open("{}/{}".format(prepare_logs_directory(project), "docker_compose_run.err.txt"), 'w')
-        args = ["docker-compose",
+        args = ['env',
+                compose_variables,
+                "docker-compose",
                 "-f",
                 compose_file,
                 "up",
