@@ -5,6 +5,7 @@ import random
 import shutil
 import string
 import subprocess
+import tempfile
 import time
 
 from pybuilder.core import Logger, Project, depends, after, before, init
@@ -50,10 +51,26 @@ def download_dependencies(dist_dir, project, logger, reactor):
     dist_file = os.path.join(dist_dir, get_dist_file_name(project))
     dep_dir = os.path.join(dist_dir, "dep")
     authorized_dependencies = project.get_property("gather_authorized_dependencies_requirements_file", None)
+
     if authorized_dependencies:
-        exec_command("pip", ["download", "--no-cache-dir", "--no-deps", "--destination-dir", dep_dir, "-r",
-                             authorized_dependencies], "pip_dep_gather", project, logger,
-                     reactor)
+        if authorized_dependencies:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                gather_secondary_dependencies = project.get_property("gather_secondary_dependencies", False)
+                if gather_secondary_dependencies:
+                    dependencies_ = ["download", "--no-cache-dir", "--destination-dir", temp_dir, "-r",
+                                     authorized_dependencies]
+                else:
+                    dependencies_ = ["download", "--no-cache-dir","--no-deps", "--destination-dir", temp_dir, "-r",
+                                     authorized_dependencies]
+                exec_command("pip", dependencies_, "pip_dep_gather", project, logger, reactor)
+                dep_prefix = project.get_property("authorized_dependency_filter_prefix",None)
+                os.makedirs(dep_dir, exist_ok=True)
+                for file in os.listdir(temp_dir):
+                    logger.info(f"Inspecting dependency: {file}")
+                    if dep_prefix is None or file.startswith(dep_prefix):
+                        dest = os.path.join(dep_dir, os.path.basename(file))
+                        logger.info(f"Matched prefix copying to : {dest}")
+                        shutil.copyfile(os.path.join(temp_dir,file), dest)
     else:
         exec_command("pip", ["download", "--no-cache-dir", "--destination-dir", dep_dir, dist_file], "pip_dep_gather",
                      project, logger,
@@ -62,7 +79,7 @@ def download_dependencies(dist_dir, project, logger, reactor):
 
 @after("publish")
 def do_docker_package(project, logger, reactor):
-    logger.info("Starting docker publish")
+    logger.info("Starting docker package")
     project.set_property_if_unset("docker_package_build_dir", "src/main/docker")
     project.set_property_if_unset("docker_package_build_img", project.name)
     project.set_property_if_unset("docker_package_build_version", project.version)
