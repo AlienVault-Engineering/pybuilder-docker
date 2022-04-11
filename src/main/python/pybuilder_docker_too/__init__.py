@@ -210,8 +210,7 @@ def _run_docker_compose(project, logger, reactor: Reactor):
                 "docker-compose",
                 "-f",
                 compose_file,
-                "up",
-                "-d"]
+                "up"]
 
         logger.debug(f"Running docker-compose with {args}")
         subprocess.Popen(args, stderr=fp_err, stdout=fp)
