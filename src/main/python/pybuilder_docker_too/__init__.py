@@ -93,17 +93,21 @@ def do_docker_package(project, logger, reactor):
     verbose = project.get_property("verbose")
     project.set_property_if_unset("docker_package_verbose_output", verbose)
     temp_build_img = 'pyb-temp-{}:{}'.format(project.name, project.version)
+    additional_build_args = project.get_property("docker_package_additional_build_args", [])
     build_img = get_build_img(project)
     logger.info("Executing primary stage docker build for image - {}.".format(build_img))
+    build_args = ['build']
+    if len(additional_build_args)>0:
+        build_args.extend(additional_build_args)
+    build_args.extend([
+        '--build-arg',
+        f"buildVersion={project.get_property('docker_package_build_version')}",
+        "-t",
+        f"{temp_build_img}",
+        f"{project.get_property('docker_package_build_dir')}"
+    ])
     exec_command(executable="docker",
-                 args=[
-                     'build',
-                     '--build-arg',
-                     f"buildVersion={project.get_property('docker_package_build_version')}",
-                     "-t",
-                     f"{temp_build_img}",
-                     f"{project.get_property('docker_package_build_dir')}"
-                 ],
+                 args=build_args,
                  output_file_name='docker_package_build', project=project, logger=logger, reactor=reactor,
                  exeception_message="Error building primary stage docker image")
     copy_dist_file(project=project, dist_dir=dist_dir)
@@ -113,13 +117,17 @@ def do_docker_package(project, logger, reactor):
     write_docker_build_file(project=project, build_image=temp_build_img, dist_dir=dist_dir,
                             gather_dependencies_locally=gather_dependencies_locally)
     logger.info("Executing secondary stage docker build for image - {}.".format(build_img))
+    additional_build_args = project.get_property("docker_package_secondary_additional_build_args", [])
+    build_args =['build']
+    if len(additional_build_args)>0:
+        build_args.extend(additional_build_args)
+    build_args.extend([
+        "-t",
+        f"{build_img}",
+        f"{dist_dir}"
+    ])
     exec_command(executable="docker",
-                 args=[
-                     'build',
-                     "-t",
-                     f"{build_img}",
-                     f"{dist_dir}"
-                 ],
+                 args=build_args,
                  output_file_name='docker_package_img', project=project, logger=logger, reactor=reactor,
                  exeception_message="Error building primary stage docker image")
     logger.info("Finished build docker image - {} - with dist file - {}".format(build_img, dist_dir))
