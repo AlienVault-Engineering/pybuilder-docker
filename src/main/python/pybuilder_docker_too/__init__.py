@@ -282,13 +282,27 @@ def _run_pretest_executable(project, logger, reactor):
                          project=project,logger=logger,reactor=reactor)
 
 
-# aws ecr get-login-password --region region | docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
 def _ecr_login(project, registry, logger, reactor):
     reactor.pybuilder_venv.verify_can_execute(["aws", "--version"], prerequisite="aws", caller="docker_package")
+
+    '''
+    Example of logging in to ECR with with aws CLI:
+    aws ecr get-login-password --region region | 
+        docker login --username AWS --password-stdin aws_account_id.dkr.ecr.region.amazonaws.com
+    '''
+
+    '''
+    You might need this for cross account ECR access where regions might not match up. RE: the calling accounts default
+    region is us-west-1 but the ecr repository is in us-est-1 in the other account. The calling user needs 
+    ecr:GetAuthorizationToken and must use the same reason as the ecr parent account. 
+    '''
+    ecr_region = project.get_property('docker_set_ecr_region', "")
+    aws_sub_command = ['--region', ecr_region] if ecr_region else []
+    aws_sub_command += ['ecr', 'get-login-password']
+
     # is true if user set verbose in build.py or from command line
-    res = exec_command('aws', [
-        'ecr', 'get-login-password'
-    ], 'docker_ecr_get_token', project, logger=logger, reactor=reactor, exeception_message="Error getting token")
+    res = exec_command('aws', aws_sub_command, 'docker_ecr_get_token', project, logger=logger, reactor=reactor,
+                       exeception_message="Error getting token")
     pass_token = res.report_lines[0]
 
     exec_command('docker', ['login', '-u', f"AWS", "-p", f"{pass_token}", f"{registry}"],
